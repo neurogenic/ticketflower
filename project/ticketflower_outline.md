@@ -28,10 +28,10 @@ TicketFlower is a flexible ticketing and workflow management system designed to 
 ### 2.5 Action Execution
 - Web forms for manual task completion
 - API endpoints for automated task execution
-- Supports future integration of autonomous workers
+- (FUTURE) Supports future integration of autonomous workers
 
 ### 2.6 Reporting and Analytics
-- Provides insights on system usage, ticket resolution times, and workflow efficiency
+- (FUTURE) Provides insights on system usage, ticket resolution times, and workflow efficiency
 
 ## 3. Detailed System Flow
 
