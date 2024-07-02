@@ -1,4 +1,54 @@
-# TicketFlower Schema and Site Design
+# TicketFlower Project Overview
+
+This is an overview of the Ticketflower project, an web site for ticket and workflow management.
+
+The main focus of the site will be on using a AI assistant to help set up
+workflows and tickets. Later, the AI assistant will also help with setting up and executing autonomous tasks as a part of workflows.
+
+The initial target will be for small businesses to easily set up a ticket system.
+
+This will be an MVP. I want to get it up and running quickly. The emphasis will not be on full features for the workflow management. The
+main point will be to illustrate the capabilities of the AI assistant. We of course still want workable functionality.
+
+The initial code we write will actual leave out the functionality of the AI assistant. We will be developing that. Here we will be 
+building the ticket and workflow framework the AI assistant will fit into.
+
+## Tech Stack
+
+Back End:
+
+- Django
+- Django Rest Framework
+- JWT
+- Python with Type annotations
+- Postgres
+- Django's built-in TestCase
+
+Front End:
+
+- Typescript
+- Vanilla React (including things like use reducer)
+- Vite
+- Tailwind and css modules
+- Jest with React Testing Library
+
+Docker/Server setup:
+
+- Django running in docker (set up with docker compose)
+    - Later we will use a hosted solution for postgres.
+- Django server running on the PC used for initial development.
+    - Later we will run this in docker
+    - Later with AI assistant we will probably switch to a server like Uvicorn, Django Channels that will support websockets. 
+- Vite set up on PC for development.
+    - Later static files will be served from the server.
+- Environment variables: .env file (with python-dotenv) for dev
+    - Likely docker secrets for prod
+
+Dev Machine:
+
+- Windows PC
+- VSCode (with debugger usage)
+
 
 ## Schema SQL
 
@@ -27,14 +77,14 @@ CREATE TABLE users (
 -- User System Roles (Junction Table)
 CREATE TABLE user_system_roles (
     user_id INTEGER REFERENCES users(id),
-    role_name system_roles,
+    role INTEGER REFERENCES system_roles(id),
     PRIMARY KEY (user_id, role_name)
 );
 
 -- User Compnay Roles (Junction Table)
 CREATE TABLE user_company_roles (
     user_id INTEGER REFERENCES users(id),
-    role_name  VARCHAR(100),
+    role  INTEGER REFERENCES company_roles(id),
     PRIMARY KEY (user_id, role_name)
 );
 
@@ -181,13 +231,8 @@ CREATE TABLE file_uploads (
 
 - Strictly enforce a user from one company can not access any records labeled for a different company (eg ticket type or ticket instance)
     - Low priority on enforcing company id consistency between linked records (eg ticket type and ticket instance)
-- System roles define access to assets within a given company. They are global and we will use hard coded values for them:
-    - user
-    - admin
-    - ticket_admin
-    - task_worker
-    - workflow_creator
-- Company specific roles can be defined to control access to ticket type submission. Default to companies having a role "user" and all users have this company role.
+- System roles define access to different web site features, within a given company. They are global and we will use hard coded values for them.
+- Company roles can be defined by the company to control access to specific ticket types for submission, which are of course defined by the company.
 
 ## User Management
 
@@ -202,7 +247,7 @@ CREATE TABLE file_uploads (
 - Simple Profile Page (allows editing fields)
 - Reset Password Page
 
-NOTES: For MVP, no functionality for creating additional company users
+For MVP, for starters, no functionality for creating additional company users. As a demo, users will be able to sign up as a company/person and do their own workflows and tickets. The full functionality will be built into the system apart from the UI part.
 
 ## User Ticket Pages
 
@@ -211,7 +256,6 @@ NOTES: For MVP, no functionality for creating additional company users
 - Ticket Detail
 
 Authorization note: "Company role" field is used for user access to ticket types.
-TBD: Should this use the same control as the Admin list?
 
 ## Ticket Team Pages
 
@@ -225,12 +269,12 @@ Access to all tickets (by company)
 - Tasks - (Active, Archive)
 - Task Detail
 
+We will support different options for assigning and tracking tickets, but for starters I think we will automatically give them to the available worker with the shortest list. Later we can think about giving options here. (Also, more advanced ticket tracking and analytics will be added later.)
+
 ### Ticket Team: Task Workers
 
 - My Tasks (To execute)
 - Task Execution (For manual/Form type tasks)
-
-TBD: Should we use the page or control from "Ticket Team: Admin" to access my tasks? This means we would need to add the link to open the task execution page too.
 
 ### Ticket Team: Workflow Designers
 
@@ -245,97 +289,4 @@ TBD: Should we use the page or control from "Ticket Team: Admin" to access my ta
 - Task Definition Upload (Create and edit)
 - Ticket Definition Upload (Create and edit)
 
-TBD: We will have a detailed mechanism for creating workflows/tasks/tickets but for starters I want a way to upload to those tables.
-
-### Ticket Assignment
-
-We will support different options for assigning and tracking tickets. For starters I think we will automatically give them to the available worker with the shortest list. Later we can think about giving options here. (Also, more advanced ticket tracking and analytics will be added later.)
-
-===========================
-
-Stack:
-
-Back End:
-
-- Django
-- Django Rest Framework
-- JWT
-- Python with Type annotations
-- Postgres
-- pytest? (Or is there a django test framework that has an advantage?)
-
-Front End:
-
-- Typescript
-- Vanilla React (including things like use reducer)
-- Vite
-- Tailwind and css modules
-- TBD test framework(s)
-
-
-================================
-
-# Review of Ticket and Workflow Management Website
-
-## Schema Review
-
-1. **Companies Table**: As noted, there's no reference to companies in the provided schema. This should be added to support multi-tenant functionality.
-
-2. **User Table**: Not provided in the schema. This table should be added to store user information and link to the companies table.
-
-3. **Roles**: Consider creating a separate roles table instead of hardcoding roles. This would allow for more flexible role management.
-
-4. **File Uploads**: Good inclusion. Consider adding a reference to the related entity (ticket, task, etc.) to easily track which uploads belong where.
-
-5. **Indexes**: Add indexes on frequently queried columns to improve performance.
-
-6. **Soft Deletes**: Consider adding a `deleted_at` column to relevant tables for soft deletes.
-
-## Page Structure Review
-
-### User Management
-
-- Add pages for user management:
-  - User List
-  - User Detail/Edit
-  - Company List
-  - Company Detail/Edit
-  - Role Management
-
-### User Pages
-
-- Current structure looks good.
-- Consider adding:
-  - Dashboard/Overview page
-  - Notifications page or component
-
-### Ticket Team Pages
-
-#### Admin
-
-- Current structure is good.
-- Add:
-  - Dashboard with key metrics
-  - Search functionality for tickets and tasks
-  - Reporting and analytics page
-
-#### Task Workers
-
-- Current structure is good.
-- Add:
-  - Dashboard with personal performance metrics
-  - Calendar view of upcoming tasks
-
-#### Workflow Designers
-
-- Current structure is good.
-- Add:
-  - Workflow visualization tool
-  - Version control for workflows, tasks, and ticket definitions
-  - Import/Export functionality for definitions
-
-### Ticket Assignment
-
-- Add a page or section for configuring assignment rules
-- Include a view for manually assigning tickets/tasks
-
+We will have a detailed mechanism for creating workflows/tasks/tickets but for starters I want a minimal way to upload to those tables. (This would be  OK to be on the backend side. This is not an intended feature of the service.)

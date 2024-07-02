@@ -1,0 +1,20 @@
+{
+    "module": "stimula_module.claude_code.claude_code_module",
+    "settings": {
+        "name": "code_chat_sonnet",
+        "agent_settings": {
+            "model": "claude-3-5-sonnet-20240620"
+        },
+        "project_info_path": "/app/ticketflower/ticketflower/stimula/project_info.md",
+        "share_files": true,
+        "share_files_line_nums": true,
+        "show_dir_path": "/app/ticketflower/ticketflower_server",
+        "project_dir": "/app/ticketflower/ticketflower_server",
+        "code_helper_settings": {
+            "default_python_path": "/app/container/python3.12/bin"
+        }
+    },
+    "app": {
+        "logging": true
+    }
+}
