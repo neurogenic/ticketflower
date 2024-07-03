@@ -1,70 +1,39 @@
 # TicketFlower Project Info
 
-TicketFlower is a ticketing and workflow system. Our current effort will be on the user management application of our Django server.
+TicketFlower is a ticketing and workflow system. We have completed an initial version of user management and now we will work on the workflow design application of our Django server.
 
-Dev machine: Windows PC + VSCode
+Workflow design will be the key differentiator of this application when released.  We will use AI assistance to define workflows and associated forms. Initially we will concentrate on manual tasks, for which a user wil be given a form to complete to input their results from the task. In the next version we will start to work on generating automated and assisted actions for the workflow tasks.
 
-## User Management Schema
+For our initial build, which we are working on now, we will create a _minimal interface_ to upload the workflow task and ticket information. We will be building out the surrounding workflow functionality before we concentrate on really developing the AI assistance workflows.
 
--- Companies Table
-CREATE TABLE companies (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+## TicketFlower Workflow Design Django Application
 
--- Users Table
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES companies(id),
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+The 'workflow_design' application is responsible for creating and managing workflow definitions, task definitions, and ticket definitions. It's used by users with the 'workflow_creator' role.
 
--- User System Roles (Junction Table)
-CREATE TABLE user_system_roles (
-    user_id INTEGER REFERENCES users(id),
-    role INTEGER REFERENCES system_roles(id),
-    PRIMARY KEY (user_id, role_name)
-);
+### Key Functionalities
 
--- User Company Roles (Junction Table)
-CREATE TABLE user_company_roles (
-    user_id INTEGER REFERENCES users(id),
-    role  INTEGER REFERENCES company_roles(id),
-    PRIMARY KEY (user_id, role_name)
-);
+- Create and edit workflow definitions
+- Create and edit task definitions
+- Define workflow transitions
+- Create and edit ticket definitions
 
--- Company Roles - Managed by company, used for ticket submit permissions
-CREATE TABLE company_roles (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES company(id),
-    role_name VARCHAR(100),
-    description VARCHAR(255)
-    -- add unique constraint on names
-);
+### User Roles
 
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES companies(id),
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+In addition to being in the proper company, the user must have the following role to use the workflow design functionality.
 
-System roles: 'admin', 'user', 'ticket_admin', 'task_worker', 'workflow_creator'
+- System role: 'workflow_creator'
 
-## User Management Functions
+### Planned Views
 
-We will start with only two user management functions. More will be added later.
+- Workflow Definitions List/Detail
+- Task Definitions List/Detail
+- Ticket Definitions List/Detail
+- Workflow Definition Upload (Create and edit)
+- Task Definition Upload (Create and edit)
+- Ticket Definition Upload (Create and edit)
 
-1. **Create Company**: Here a user will sign up a company.
-    - Create the company
-    - Create the admin users for the company
+### Development Environment
 
-2. **User Login**: The user logs in.
+- Django framework
+- PostgreSQL database
+- Dev machine: Windows PC + VSCode

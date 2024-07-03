@@ -37,3 +37,6 @@ Migrations: (for users app shown. that can be omitted)
 python manage.py makemigrations users
 python manage.py migrate
 ```
+
+admin page:
+http://127.0.0.1:8000/admin/
