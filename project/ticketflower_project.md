@@ -1,6 +1,6 @@
 # TicketFlower Project Overview
 
-This is an overview of the Ticketflower project, an web site for ticket and workflow management.
+This is an overview of the Ticketflower project, a web site for ticket and workflow management.
 
 The main focus of the site will be on using a AI assistant to help set up
 workflows and tickets. Later, the AI assistant will also help with setting up and executing autonomous tasks as a part of workflows.
@@ -10,47 +10,26 @@ The initial target will be for small businesses to easily set up a ticket system
 This will be an MVP. I want to get it up and running quickly. The emphasis will not be on full features for the workflow management. The
 main point will be to illustrate the capabilities of the AI assistant. We of course still want workable functionality.
 
-The initial code we write will actual leave out the functionality of the AI assistant. We will be developing that. Here we will be 
+The initial code we write will actual leave out the functionality of the AI assistant. We will be developing that later. Here we will be
 building the ticket and workflow framework the AI assistant will fit into.
 
 ## Tech Stack
 
-Back End:
-
 - Django
-- Django Rest Framework
-- JWT
 - Python with Type annotations
 - Postgres
 - Django's built-in TestCase
 
-Front End:
+Dev setup:
 
-- Typescript
-- Vanilla React (including things like use reducer)
-- Vite
-- Tailwind and css modules
-- Jest with React Testing Library
-
-Docker/Server setup:
-
-- Django running in docker (set up with docker compose)
-    - Later we will use a hosted solution for postgres.
-- Django server running on the PC used for initial development.
-    - Later we will run this in docker
-    - Later with AI assistant we will probably switch to a server like Uvicorn, Django Channels that will support websockets. 
-- Vite set up on PC for development.
-    - Later static files will be served from the server.
 - Environment variables: .env file (with python-dotenv) for dev
-    - Likely docker secrets for prod
-
-Dev Machine:
-
-- Windows PC
-- VSCode (with debugger usage)
+- Windows machine + VSCode
+- Postgres is running in a docker container
 
 
 ## Schema SQL
+
+Here is the schema as designed in SQL. This can be modified as needed to fit Django.
 
 ```sql
 
@@ -110,6 +89,8 @@ CREATE TABLE users (
 CREATE TYPE task_status AS ENUM ('OPEN', 'IN_PROGRESS', 'PENDING', 'COMPLETED', 'CANCELLED', 'ERROR');
 CREATE TYPE workflow_status AS ENUM ('NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'ON_HOLD');
 CREATE TYPE task_type AS ENUM ('FORM', 'SYNC_ACTION', 'ASYNC_ACTION');
+CREATE TYPE error_type AS ENUM ('WORKFLOW_CREATION', 'TASK_CREATION', 'TASK_UPDATE', 'WORKFLOW_TRANSITION');
+CREATE TYPE error_status AS ENUM ('NEW', 'REVIEWED', 'RESOLVED');
 
 -- Workflow Definition
 CREATE TABLE workflow_definitions (
@@ -215,6 +196,22 @@ CREATE TABLE ticket_instances (
     created_by INTEGER REFERENCES users(id),
 );
 
+-- Ticket Errors (for errors in workflow execution)
+CREATE TABLE ticket_errors (
+    id SERIAL PRIMARY KEY,
+    ticket_id INTEGER REFERENCES ticket_instances(id) NOT NULL,
+    task_id INTEGER REFERENCES task_instances(id),
+    error_type error_type NOT NULL,
+    error_message TEXT NOT NULL,
+    stack_trace TEXT,
+    error_status error_status DEFAULT 'New',
+    resolution_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
 CREATE TABLE file_uploads (
     id SERIAL PRIMARY KEY,
     company_id INTEGER REFERENCES company(id),
@@ -227,12 +224,6 @@ CREATE TABLE file_uploads (
 );
 
 ```
-## Authorization and Security
-
-- Strictly enforce a user from one company can not access any records labeled for a different company (eg ticket type or ticket instance)
-    - Low priority on enforcing company id consistency between linked records (eg ticket type and ticket instance)
-- System roles define access to different web site features, within a given company. They are global and we will use hard coded values for them.
-- Company roles can be defined by the company to control access to specific ticket types for submission, which are of course defined by the company.
 
 ## User Management
 
@@ -241,42 +232,34 @@ CREATE TABLE file_uploads (
     - Function: Creates a new company and the first admin user
 - User Login Page
     - Fields: Email, Password
-- User Dashboard
-    - Display user information
-    - Links to other functionalities (Submit Tickets, My Tickets, etc.)
-- Simple Profile Page (allows editing fields)
+- User Landing Page (populated later)
+
+LATER:
+
 - Reset Password Page
+- Simple Profile Page (allows editing fields)
+
 
 For MVP, for starters, no functionality for creating additional company users. As a demo, users will be able to sign up as a company/person and do their own workflows and tickets. The full functionality will be built into the system apart from the UI part.
 
-## User Ticket Pages
+## User Ticket Pages (user role)
 
 - Submit Tickets
-- My Tickets
+- My Tickets (Active, Archive)
 - Ticket Detail
 
 Authorization note: "Company role" field is used for user access to ticket types.
 
 ## Ticket Team Pages
 
-### Ticket Team: Admin
+### Ticket Management: (ticket_admin role)
 
-Access to all tickets (by company)
-
-- Tickets (Active, Archive)
+- Tickets
 - Ticket Detail
-
-- Tasks - (Active, Archive)
+- Tasks
 - Task Detail
-
-We will support different options for assigning and tracking tickets, but for starters I think we will automatically give them to the available worker with the shortest list. Later we can think about giving options here. (Also, more advanced ticket tracking and analytics will be added later.)
-
-### Ticket Team: Task Workers
-
-- My Tasks (To execute)
-- Task Execution (For manual/Form type tasks)
-
-### Ticket Team: Workflow Designers
+- Ticket Errors
+- Ticket Error Detail
 
 - Workflow Definitions
 - Workflow Definition Detail
@@ -285,8 +268,21 @@ We will support different options for assigning and tracking tickets, but for st
 - Ticket Definitions
 - Ticket Definition Detail
 
+Initially we will automatically give them to the available worker with the shortest list. Later we can think about giving options here.
+
+Initially we will not have any error handling capability in the UI.
+
+Later we will support different options for assigning and tracking tickets along with more advanced ticket tracking and analytics.
+
+### Ticket Execution: (task_workers role)
+
+- My Tasks (To execute)
+- Task Execution (For manual/Form type tasks)
+
+### Workflow Creation (workflow_creator role)
+
 - Workflow Definition Upload (Create and edit)
 - Task Definition Upload (Create and edit)
 - Ticket Definition Upload (Create and edit)
 
-We will have a detailed mechanism for creating workflows/tasks/tickets but for starters I want a minimal way to upload to those tables. (This would be  OK to be on the backend side. This is not an intended feature of the service.)
+I want a minimal way to upload to these tables. Later we will work on detailed workflow definition with an AI assistant.

@@ -1,5 +1,13 @@
 # Infolog: TicketFlower
 
+## 7/3/24
+
+progress:
+
+- Started over again!
+- Built out most of the users app. I have a few page issues.
+    - I am currently running, see file server_build/char_users.md.
+
 ## 7/2/24
 
 progress:
