@@ -1,6 +1,5 @@
-# Project Setup Chat
-
-==============
+TicketFlower Project Info
+=========================
 
 # TicketFlower Project Overview
 
@@ -36,267 +35,9 @@ Dev setup:
 - Postgres is running in a docker container
 
 
-## Schema SQL
+## Overview
 
-Here is the schema as designed in SQL. This can be modified as needed to fit Django.
-
-```sql
-
-CREATE TYPE system_roles AS ENUM ('admin', 'user', 'ticket_admin', 'task_worker', 'workflow_creator');
-
--- Companies Table
-CREATE TABLE companies (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Users Table
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES companies(id),
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- User System Roles (Junction Table)
-CREATE TABLE user_system_roles (
-    user_id INTEGER REFERENCES users(id),
-    role INTEGER REFERENCES system_roles(id),
-    PRIMARY KEY (user_id, role_name)
-);
-
--- User Compnay Roles (Junction Table)
-CREATE TABLE user_company_roles (
-    user_id INTEGER REFERENCES users(id),
-    role  INTEGER REFERENCES company_roles(id),
-    PRIMARY KEY (user_id, role_name)
-);
-
--- Company Roles - Managed by company, used for ticket submit permissions
-CREATE TABLE company_roles (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES company(id),
-    role_name VARCHAR(100),
-    description VARCHAR(255)
-    -- add unique constraint on names
-);
-
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES companies(id),
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TYPE task_status AS ENUM ('OPEN', 'IN_PROGRESS', 'PENDING', 'COMPLETED', 'CANCELLED', 'ERROR');
-CREATE TYPE workflow_status AS ENUM ('NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'ON_HOLD');
-CREATE TYPE task_type AS ENUM ('FORM', 'SYNC_ACTION', 'ASYNC_ACTION');
-CREATE TYPE error_type AS ENUM ('WORKFLOW_CREATION', 'TASK_CREATION', 'TASK_UPDATE', 'WORKFLOW_TRANSITION');
-CREATE TYPE error_status AS ENUM ('NEW', 'REVIEWED', 'RESOLVED');
-
--- Workflow Definition
-CREATE TABLE workflow_definitions (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES company(id),
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    ext_ref JSONB,  -- Array of {Label: String, Desc: String, URI: String}
-    fields JSONB,  -- Array of {FieldName: String, FieldType: String}
-    version INTEGER DEFAULT 1,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by INTEGER REFERENCES users(id)
-    display_layout TEXT,  -- react component source, to show the workflow
-);
-
--- Task Definition
-CREATE TABLE task_definitions (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES company(id),
-    workflow_id INTEGER REFERENCES workflow_definitions(id),
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    ext_ref JSONB,
-    task_type task_type NOT NULL,
-    input_schema JSONB,
-    output_schema JSONB,
-    version INTEGER DEFAULT 1,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by INTEGER REFERENCES users(id),
-    edit_layout TEXT, -- react component source, to edit a task instance
-    display_layout TEXT, -- react component source, to display a task instance
-    action_url TEXT, -- url for async, sync action
-    input_transform JSONB, -- input transform for async and sync action
-    output_transform JSONB, -- output transform for sync action (handle response) and async action (process url call)
-    timeout_seconds INTEGER -- timeout for sync action
-);
-
--- Workflow Transitions
-CREATE TABLE workflow_transitions (
-    id SERIAL PRIMARY KEY,
-    workflow_id INTEGER REFERENCES workflow_definitions(id),
-    from_task_id INTEGER REFERENCES task_definitions(id),
-    to_task_id INTEGER REFERENCES task_definitions(id),
-    condition TEXT, -- JSON condition to evaluate
-    priority INTEGER DEFAULT 0
-);
-
--- Ticket Types
-CREATE TABLE ticket_definitions (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES company(id),
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    ext_ref JSONB,  -- Array of {Label: String, Desc: String, URI: String}
-    workflow_id INTEGER REFERENCES workflow_definitions(id),
-    fields JSONB,  -- Object of {FieldName: Value}
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    version INTEGER DEFAULT 1,
-    created_by INTEGER REFERENCES users(id),
-    company_role_access VARCHAR(100) [] -- Array of company role names that have access
-    edit_layout TEXT,  -- react component source, to edit a ticket instance
-    display_layout TEXT,  -- react component source, to display a ticket instance
-);
-
--- Workflow Instance
-CREATE TABLE workflow_instances (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES company(id),
-    workflow_id INTEGER REFERENCES workflow_definitions(id),
-    current_task_id INTEGER REFERENCES task_definitions(id),
-    workflow_data JSONB,
-    w_status workflow_status DEFAULT 'IN_PROGRESS',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Task Instance
-CREATE TABLE task_instances (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES company(id),
-    workflow_instance_id INTEGER REFERENCES workflow_instances(id),
-    task_definition_id INTEGER REFERENCES task_definitions(id),
-    t_status task_status DEFAULT 'PENDING',
-    input_data JSONB,
-    output_data JSONB,
-    started_at TIMESTAMP WITH TIME ZONE,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    assigned_to INTEGER REFERENCES users(id)
-);
-
--- Ticket (for actual tickets created by users)
-CREATE TABLE ticket_instances (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES company(id),
-    ticket_type_id INTEGER REFERENCES ticket_definitions(id),
-    workflow_id INTEGER REFERENCES workflow_instances(id),
-    ticket_data JSONB,  -- Actual data submitted for this ticket
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by INTEGER REFERENCES users(id),
-);
-
--- Ticket Errors (for errors in workflow execution)
-CREATE TABLE ticket_errors (
-    id SERIAL PRIMARY KEY,
-    ticket_id INTEGER REFERENCES ticket_instances(id) NOT NULL,
-    task_id INTEGER REFERENCES task_instances(id),
-    error_type error_type NOT NULL,
-    error_message TEXT NOT NULL,
-    stack_trace TEXT,
-    error_status error_status DEFAULT 'New',
-    resolution_notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-
-
-CREATE TABLE file_uploads (
-    id SERIAL PRIMARY KEY,
-    company_id INTEGER REFERENCES company(id),
-    filename VARCHAR(255) NOT NULL,
-    version INTEGER DEFAULT 1,
-    ext_key TEXT NOT NULL,
-    file_type VARCHAR(100),
-    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    uploaded_by INTEGER REFERENCES users(id)
-);
-
-```
-
-## User Management
-
-- Company Sign-up Page
-    - Fields: Company Name, Admin User Email, Admin User Password, Admin User First Name, Admin User Last Name
-    - Function: Creates a new company and the first admin user
-- User Login Page
-    - Fields: Email, Password
-- User Landing Page (populated later)
-
-LATER:
-
-- Reset Password Page
-- Simple Profile Page (allows editing fields)
-
-
-For MVP, for starters, no functionality for creating additional company users. As a demo, users will be able to sign up as a company/person and do their own workflows and tickets. The full functionality will be built into the system apart from the UI part.
-
-## User Ticket Pages (user role)
-
-- Submit Tickets
-- My Tickets (Active, Archive)
-- Ticket Detail
-
-Authorization note: "Company role" field is used for user access to ticket types.
-
-## Ticket Team Pages
-
-### Ticket Management: (ticket_admin role)
-
-- Tickets
-- Ticket Detail
-- Tasks
-- Task Detail
-- Ticket Errors
-- Ticket Error Detail
-
-- Workflow Definitions
-- Workflow Definition Detail
-- Task Definitions
-- Task Definition Detail
-- Ticket Definitions
-- Ticket Definition Detail
-
-Initially we will automatically give them to the available worker with the shortest list. Later we can think about giving options here.
-
-Initially we will not have any error handling capability in the UI.
-
-Later we will support different options for assigning and tracking tickets along with more advanced ticket tracking and analytics.
-
-### Ticket Execution: (task_workers role)
-
-- My Tasks (To execute)
-- Task Execution (For manual/Form type tasks)
-
-### Workflow Creation (workflow_creator role)
-
-- Workflow Definition Upload (Create and edit)
-- Task Definition Upload (Create and edit)
-- Ticket Definition Upload (Create and edit)
-
-I want a minimal way to upload to these tables. Later we will work on detailed workflow definition with an AI assistant.sistant will also help with setting up and executing autonomous tasks as a part of workflows.
-
-The initial target will be for small businesses to easily set up a ticket system.
+The initial target will be for small businesses to easily set up a ticket/order and workflow system.
 
 This will be an MVP. I want to get it up and running quickly. The emphasis will not be on full features for the workflow management. The
 main point will be to illustrate the capabilities of the AI assistant. We of course still want workable functionality.
@@ -304,125 +45,114 @@ main point will be to illustrate the capabilities of the AI assistant. We of cou
 The initial code we write will actual leave out the functionality of the AI assistant. We will be developing that later. Here we will be
 building the ticket and workflow framework the AI assistant will fit into.
 
+## Multi-tenancy
+
+Users are restricted to only view assets for their company. User management should contain some support for this.
+
+## Workflow Design App Pages
+
+### Definitions Pages (ticket_admin, workflow_creator roles)
+
+- Workflow Definitions
+- Workflow Definition Detail
+    - workflow definition fields
+    - tasks
+    - transitions
+    - tickets
+- Task Definition Detail
+- Ticket Definition Detail
+- Transition Detail
+
+
+### Workflow Upload Pages (workflow_creator role)
+
+- Workflow Definition Upload (Create and edit)
+- Task/Ticket.Trainsition Definition Upload - For a given workflow (Create and edit)
+
+The workflow upload pages are just a placeholder to allow population of the workflow pages. Later we will work on workflow development.
+
 ---
 
-# TicketFlower Project Design Report
+# Workflow Definition Guide
 
-## Project Overview
+This guide outlines the components of a workflow definition in the TicketFlower system, including workflows, tasks, transitions, and tickets.
 
-TicketFlower is a web-based ticket and workflow management system designed for small businesses. The primary goal is to create a Minimum Viable Product (MVP) that demonstrates the core functionality of ticket submission, workflow management, and task execution. The system is designed with future AI assistant integration in mind, although this feature is not part of the initial implementation.
+## Workflow Definition
 
-## Technical Stack
+A workflow definition is the top-level object that describes a complete process.
 
-- Backend: Django (Python web framework)
-- Database: PostgreSQL
-- Frontend: Django templates (with future potential for a more advanced frontend)
-- Development Environment: Windows with VSCode, PostgreSQL in Docker
+Fields:
+- Title: A short, descriptive name for the workflow
+- Description: A detailed explanation of the workflow's purpose and function
+- External References: JSON array of {Label: String, Desc: String, URI: String} for any external resources
+- Fields: JSON array of {FieldName: String, FieldType: String} for custom fields in the workflow
+- Version: Integer representing the version of this workflow definition
+- Status: One of 'DRAFT', 'ACTIVE', or 'ARCHIVED'
+- Display Layout: Django form content to display the workflow
 
-## Key Design Decisions
+## Task Definition
 
-### 1. Authorization and Multi-tenancy
+Tasks are individual steps within a workflow.
 
-The system is designed to support multiple companies (tenants) while ensuring data isolation and proper access control.
+Fields:
+- Title: A short, descriptive name for the task
+- Description: A detailed explanation of what the task involves
+- External References: JSON array of {Label: String, Desc: String, URI: String} for any external resources
+- Task Type: One of 'FORM', 'SYNC_ACTION', or 'ASYNC_ACTION'
+- Input Schema: JSON schema describing the expected input for this task
+- Output Schema: JSON schema describing the expected output from this task
+- Version: Integer representing the version of this task definition
+- Edit Layout: Django form content for editing a task instance
+- Display Layout: Django form content for displaying a task instance
+- Action URL: URL for async or sync actions (if applicable)
+- Input Transform: JSON describing how to transform input data (if applicable)
+- Output Transform: JSON describing how to transform output data (if applicable)
+- Timeout Seconds: Integer for timeout duration (for sync actions)
 
-#### Authorization Model:
+## Workflow Transitions
 
-a. Authentication:
-   - Utilizes Django's built-in User model and authentication system for simplicity and security.
+Transitions define the flow between tasks in a workflow.
 
-b. Company Identification:
-   - A Company model is created and linked to User with a ForeignKey, establishing the multi-tenant structure.
+Fields:
+- From Task: The task this transition starts from (can be null for starting transitions)
+- To Task: The task this transition leads to (can be null for ending transitions)
+- To Status: The workflow status to transition to (used when To Task is null)
+- Condition: A text field describing the condition for this transition
+- Priority: Integer for ordering multiple possible transitions
 
-c. System Roles:
-   - Leverages Django's built-in Group model for system-wide roles.
-   - Permissions are assigned to these groups using Django's permission system, allowing for flexible role-based access control.
+Rules for Transitions:
+1. A transition must have either a To Task or a To Status, but not both.
+2. If From Task is null, it represents a starting point for the workflow.
+3. If To Task is null and To Status is set, it represents an ending point for the workflow.
+4. Multiple transitions can come from the same From Task, but they should have different conditions or priorities.
+5. The Condition field can be used to specify when this transition should be taken (e.g., based on task output or workflow data).
+6. Priority determines the order in which conditions are evaluated when multiple transitions are possible.
 
-d. Company Roles:
-   - A custom CompanyRole model is implemented to handle company-specific roles.
-   - This model is linked to both Company and User with a many-to-many relationship, allowing users to have different roles in different companies.
+## Ticket Definition
 
-e. Authorization Implementation:
-   - Django's @permission_required decorator is used for view-level permissions, providing a straightforward way to restrict access to specific views.
-   - Custom permissions are implemented for more granular control where needed.
+Ticket definitions describe the structure of tickets that can be created for this workflow.
 
-f. Multi-tenancy Implementation:
-   - The get_queryset method in views is overridden to filter by the user's company, ensuring data isolation.
-   - A custom model manager is used to always filter by company, providing an additional layer of security.
+Fields:
+- Title: A short, descriptive name for the ticket type
+- Description: A detailed explanation of what this ticket type represents
+- External References: JSON array of {Label: String, Desc: String, URI: String} for any external resources
+- Fields: JSON object of {FieldName: Value} describing the fields for this ticket type
+- Version: Integer representing the version of this ticket definition
+- Company Role Access: JSON array of company role names that have access to this ticket type
+- Edit Layout: Django form content for editing a ticket instance
+- Display Layout: Django form content for displaying a ticket instance
 
-g. Middleware (optional):
-   - A light middleware is considered to set the current company in the request, simplifying company-based filtering throughout the application.
+## Best Practices
 
-#### Handling Multi-tenancy:
+1. Start with a clear understanding of the entire process before defining the workflow.
+2. Break down the process into distinct, manageable tasks.
+3. Clearly define the input and output for each task.
+4. Use meaningful names and descriptions for all components.
+5. Consider all possible paths through the workflow, including error conditions and edge cases.
+6. Use the condition field in transitions to create dynamic, data-driven workflows.
+7. Leverage the priority field in transitions to control the flow when multiple transitions are possible.
+8. Design ticket definitions to capture all necessary information for the workflow.
+9. Use the company role access field in ticket definitions to control who can interact with different types of tickets.
+10. Utilize the layout fields (display_layout, edit_layout) to create user-friendly interfaces for interacting with workflows, tasks, and tickets.
 
-a. Middleware:
-   - The existing middleware sets the current company for each request.
-   - For superusers, it checks for an 'impersonated_company_id' in the session, allowing for company impersonation.
-
-b. Superuser Functionality:
-   - A dedicated page for superusers is created to allow company impersonation.
-   - The selected company ID is stored in the session for the duration of the impersonation.
-
-c. User Interface:
-   - The current company name is displayed in the standard page header or navbar, providing clear context for the user.
-
-d. Session Management:
-   - An option to end impersonation (clearing the session variable) is provided for superusers.
-
-e. Logging:
-   - Standard action logging includes both user and affected data, ensuring a comprehensive audit trail.
-
-### 2. Development Approach
-
-The development is structured into logical phases, focusing on building core functionality incrementally.
-
-#### Task List:
-
-1. Project Setup:
-   - Initialize the Django project, set up the PostgreSQL database, and configure environment variables.
-
-2. User Management (users app):
-   - Implement company and user models.
-   - Create views and templates for company signup, user login, and user dashboard.
-
-3. Workflow, Task, and Ticket Definition (workflow_design app):
-   - Create models for workflow, task, and ticket definitions.
-   - Implement listing pages for definitions with appropriate access controls.
-   - Create interfaces for uploading and editing definitions.
-
-4. Workflow Management (workflow_ops app):
-   - Implement models for workflow and task instances.
-   - Create a WorkflowStateManager to handle workflow logic.
-   - Develop user interfaces for ticket submission, listing, and details.
-   - Create admin interfaces for ticket and task management.
-
-5. Task Execution (workflow_ops app):
-   - Implement interfaces for task workers to view and complete assigned tasks.
-   - Integrate task completion with workflow state updates.
-
-### 3. Workflow Transition Model
-
-The workflow transition process is designed to be robust while maintaining simplicity.
-
-1. Database Update:
-   - User-initiated changes (e.g., ticket submission, task completion) are immediately reflected in the database.
-
-2. Workflow State Management:
-   - After the initial database update, the WorkflowStateManager is invoked.
-   - This manager calculates the next transition, creates new tasks, or completes the workflow as needed.
-   - These operations are performed outside the initial database transaction to prevent blocking.
-
-3. Error Handling:
-   - Any errors during the workflow management process are captured and stored for admin review.
-
-### 4. Error Handling
-
-A comprehensive error tracking system is implemented to capture and manage issues in the workflow process. 
-
-1. Workflow Creation Error: Occurs when a ticket exists but workflow instance creation fails.
-2. Task Creation Error: Happens when a workflow exists but the system is unable to create the next task.
-3. Task Update Error: Occurs when the system is unable to update a task's status.
-4. Workflow Transition Error: A catch-all category for issues related to transitioning the workflow, including data validation, condition evaluation, assignment, and completion problems.
-
-## Conclusion
-
-This design provides a solid foundation for the TicketFlower MVP. It emphasizes simplicity and functionality while allowing for future expansion and integration of more advanced features like AI assistance. The multi-tenant architecture ensures data isolation and security, while the workflow management system provides flexibility for various business processes. The error handling system allows for robust operation and easy troubleshooting. As development progresses, these design decisions can be revisited and refined based on real-world usage and emerging requirements.
+Remember, a well-designed workflow should be clear, efficient, and flexible enough to handle various scenarios within your business process.

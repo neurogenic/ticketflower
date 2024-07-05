@@ -1,5 +1,22 @@
 # Infolog: TicketFlower
 
+## 7/4/24
+
+progress:
+
+- Have the workflow design app. Needs testing.
+
+notes:
+
+- I am in process of working on designing workflows with the assistant.
+    - see conversation "chat_workflow_design_testing2.md"
+    - I haven't made much progress on that yet. I was trying to make a guide document for the AI for starters. 
+
+
+stimula notes:
+
+- I should make a function to list the shared files.
+
 ## 7/3/24
 
 progress:
