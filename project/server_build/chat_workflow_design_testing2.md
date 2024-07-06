@@ -737,7 +737,7 @@ Before I go, I would like you to do one more thing. Please make a list of all th
 - **created_by**: ForeignKey to CustomUser, optional
 - **display_layout**: TextField, optional, Django form content to show the workflow
 - **status**: CharField, max length 20
-  - Options: 'DRAFT', 'ACTIVE', 'ARCHIVED'
+  - Options: 'DRAFT', 'ACTIVE', 'DEPRECATED', 'ARCHIVED'
   - Default: 'DRAFT'
 
 ## TaskDefinition
@@ -746,7 +746,7 @@ Before I go, I would like you to do one more thing. Please make a list of all th
 - **workflow**: ForeignKey to WorkflowDefinition
 - **title**: CharField, max length 255
 - **description**: TextField, optional
-- **ext_ref**: JSONField, optional
+- **ext_ref**: JSONField, optional, Array of {Label: String, Desc: String, URI: String}
 - **task_type**: CharField, max length 20
   - Options: 'FORM', 'SYNC_ACTION', 'ASYNC_ACTION'
 - **input_schema**: JSONField, optional
