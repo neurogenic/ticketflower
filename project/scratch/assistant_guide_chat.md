@@ -1326,3 +1326,12 @@ Some possible outcomes related to coding:
 - Work towards automated context generation for the coding assistant
 - Get the UI built!
 
+--------------------
+
+Plan:
+
+- finish coding this model:
+   - add permissions assigned by company role?
+   - make the system "reactive"?
+- work on UI for Stimula
+

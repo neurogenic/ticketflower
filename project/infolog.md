@@ -1,5 +1,13 @@
 # Infolog: TicketFlower
 
+## 7/8/24
+
+progress:
+
+- I updated the workflow definitions so transitions did not need to be explicitly specified.
+    - I had trouble with the migrations. I want to start a new DB. I also want to update the auth.
+- The conversation "chat_workflow_design_app_update.md" includes a discussion about the new auth system, including something like a "spec" near the end.
+
 ## 7/4/24
 
 progress:
